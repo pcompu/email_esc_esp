@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="es-UY">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Correo ADI — Etapa 5: Puentes de comunicación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Paleta tomada de la interfaz de Gmail */
+    --bg:#f6f8fc;
+    --surface:#ffffff;
+    --search:#eaf1fb;
+    --hover:#eaebef;
+    --selected:#d3e3fd;
+    --compose:#c2e7ff;
+    --compose-ink:#001d35;
+    --blue:#0b57d1;
+    --line:#dadce0;
+    --line-soft:#e8eaed;
+    --ink:#1f1f1f;
+    --ink-soft:#555a60;
+    --alert:#c5221f;
+    --ok:#137333;
+    /* Identidad ADI, reservada para la marca y el comprobante */
+    --adi-deep:#0b2b33;
+    --adi-teal:#00a096;
+    --adi-cyan:#41e3ff;
+    --font-body:"Atkinson Hyperlegible","Verdana",system-ui,sans-serif;
+    --font-display:"Orbitron","Atkinson Hyperlegible",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    font-size:17px;
+    line-height:1.55;
+    /* Todo en mayúsculas. El texto real queda en minúscula:
+       así el lector de pantalla y la voz leen palabras, no letras. */
+    text-transform:uppercase;
+    letter-spacing:.02em;
+  }
+  button{font-family:inherit;font-size:inherit;cursor:pointer;color:inherit;text-transform:uppercase;letter-spacing:.02em;}
+  input,textarea{font-family:inherit;font-size:inherit;color:var(--ink);text-transform:uppercase;letter-spacing:.02em;}
+  :focus-visible{outline:3px solid #0b57d1;outline-offset:2px;}
+  [tabindex="-1"]:focus{outline:none;}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+
+  /* Lectura fácil: una idea por línea */
+  .l{display:block;}
+  .par{margin-bottom:1.1em;}
+  .par:last-child{margin-bottom:0;}
+  .lineas{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:6px;}
+
+  /* ---------- Barra superior ---------- */
+  .topbar{
+    display:flex;align-items:center;gap:20px;
+    background:var(--bg);
+    padding:8px 16px;
+    min-height:68px;
+  }
+  .brand{display:flex;align-items:center;gap:9px;flex-shrink:0;width:220px;}
+  .brand svg{width:34px;height:34px;display:block;}
+  .brand-text b{
+    font-family:var(--font-display);
+    letter-spacing:1.5px;font-size:20px;color:var(--adi-deep);font-weight:600;
+  }
+  .brand-text span{font-size:20px;color:var(--ink-soft);letter-spacing:.2px;}
+  .searchbar{
+    flex:1;max-width:720px;display:flex;align-items:center;gap:12px;
+    background:var(--search);border:1px solid transparent;border-radius:8px;padding:10px 16px;
+  }
+  .searchbar:focus-within{background:var(--surface);box-shadow:0 1px 3px rgba(32,33,36,.28);border-radius:8px;}
+  .searchbar input{flex:1;background:transparent;border:0;outline:none;font-size:16px;}
+  .searchbar input::placeholder{color:var(--ink-soft);}
+  .agent-tag{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-soft);flex-shrink:0;}
+  .avatar{
+    width:36px;height:36px;border-radius:50%;background:var(--adi-teal);color:#fff;
+    display:grid;place-items:center;font-weight:700;font-size:15px;
+  }
+
+  /* ---------- Estructura ---------- */
+  .app{
+    display:grid;grid-template-columns:236px 380px 1fr;
+    gap:0 8px;height:calc(100vh - 68px);min-height:520px;padding:0 8px 8px;
+  }
+  .sidebar{padding:0 8px 8px 0;overflow:auto;}
+  .btn-compose{
+    display:flex;align-items:center;gap:11px;
+    background:var(--compose);color:var(--compose-ink);border:0;border-radius:16px;
+    padding:15px 20px;font-weight:700;font-size:16px;margin:0 0 12px 6px;text-align:left;
+    box-shadow:0 1px 3px rgba(60,64,67,.2);
+  }
+  .btn-compose:hover{box-shadow:0 2px 6px rgba(60,64,67,.3);background:#b5e0fb;}
+  .folders{list-style:none;margin:0;padding:0;}
+  .folders button{
+    width:100%;text-align:left;background:transparent;border:0;border-radius:0 16px 16px 0;
+    padding:10px 14px 10px 22px;display:flex;align-items:center;gap:14px;font-size:15px;min-height:44px;
+  }
+  .folders button:hover{background:var(--hover);}
+  .folders button[aria-current="true"]{background:var(--selected);font-weight:700;color:#041e49;}
+  .folders .count{margin-left:auto;font-size:14px;color:var(--ink-soft);}
+  .folders button[aria-current="true"] .count{color:#041e49;}
+  .hint{
+    margin:20px 8px 0 12px;padding:14px 16px;background:var(--surface);
+    border:1px solid var(--line-soft);border-radius:12px;font-size:14.5px;color:var(--ink);
+  }
+  .hint b{display:block;margin-bottom:6px;}
+  .hint .lineas{margin:0;}
+
+  .list{background:var(--surface);border-radius:16px;overflow:auto;}
+  .list-head{
+    position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line-soft);
+    padding:16px 20px 12px;font-weight:700;font-size:15px;letter-spacing:.3px;color:var(--ink-soft);margin:0;z-index:2;
+  }
+  .mail-list{list-style:none;margin:0;padding:0;}
+  .mail-item{
+    width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line-soft);
+    padding:13px 20px;display:block;
+  }
+  .mail-item:hover{background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-soft),0 1px 3px rgba(60,64,67,.22);position:relative;z-index:1;}
+  .mail-item[aria-current="true"]{background:#c2dbff;}
+  .mail-item .who{display:flex;justify-content:space-between;gap:8px;font-size:14px;color:var(--ink-soft);}
+  .mail-item .who strong{color:var(--ink);font-size:15px;}
+  .mail-item .subj{display:block;font-weight:700;margin-top:2px;font-size:15px;}
+  .mail-item .prev{display:block;font-size:14px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mail-item .clip{display:block;font-size:13.5px;color:var(--ink-soft);margin-top:5px;}
+  .empty{padding:40px 24px;text-align:center;color:var(--ink-soft);}
+
+  .reader{background:var(--surface);border-radius:16px;overflow:auto;padding:28px 36px 40px;}
+  .reader h2{margin:0 0 14px;font-size:23px;font-weight:700;line-height:1.35;}
+  .meta{display:flex;flex-direction:column;gap:4px;font-size:15px;color:var(--ink-soft);padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--line-soft);}
+  .meta b{color:var(--ink);}
+  .body-text{font-size:18px;line-height:1.6;max-width:62ch;}
+  .attach-row{margin-top:26px;border-top:1px solid var(--line-soft);padding-top:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+  .attach-tit{flex-basis:100%;margin:0;font-size:14.5px;color:var(--ink-soft);font-weight:700;}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;background:var(--surface);
+    border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:14.5px;text-transform:none;
+  }
+  .chip .x{background:transparent;border:0;color:var(--ink-soft);font-size:18px;line-height:1;padding:4px 6px;min-width:32px;min-height:32px;}
+  .chip .x:hover{color:var(--alert);}
+  .badge-sent{
+    display:inline-flex;align-items:center;gap:7px;background:#e6f4ea;color:var(--ok);
+    border-radius:16px;padding:7px 14px;font-size:14px;font-weight:700;
+  }
+  .btn-secondary{
+    background:var(--surface);border:1px solid var(--line);color:var(--blue);
+    border-radius:18px;padding:10px 18px;font-weight:700;font-size:15px;min-height:44px;
+  }
+  .btn-secondary:hover{background:#f0f5ff;border-color:#c6d9f7;}
+
+  /* ---------- Redacción ---------- */
+  .compose{
+    position:fixed;right:26px;bottom:0;width:min(600px,calc(100vw - 32px));
+    max-height:88vh;overflow:auto;
+    background:var(--surface);border-radius:12px 12px 0 0;
+    box-shadow:0 8px 28px rgba(32,33,36,.32);z-index:40;
+  }
+  .compose[hidden]{display:none;}
+  .compose-head{
+    position:sticky;top:0;z-index:2;
+    background:#f2f6fc;color:var(--ink);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .compose-head h2{margin:0;font-size:16px;font-weight:700;}
+  .compose-head button{background:transparent;border:0;color:var(--ink-soft);font-size:20px;line-height:1;padding:6px 10px;min-height:40px;}
+  .compose-head button:hover{color:var(--ink);}
+  .field{border-bottom:1px solid var(--line-soft);padding:12px 16px;}
+  .field label{display:block;font-size:15px;font-weight:700;color:var(--ink);}
+  .field .ayuda{margin:0 0 6px;font-size:14px;color:var(--ink-soft);}
+  .field input{width:100%;border:2px solid var(--line);border-radius:8px;outline:none;padding:9px 10px;min-height:46px;}
+  .field input:focus{border-color:var(--blue);}
+  .field .lineas{font-size:14px;color:var(--ink-soft);margin:0 0 8px;gap:2px;}
+  .compose textarea{
+    width:100%;border:2px solid var(--line);border-radius:8px;outline:none;resize:vertical;min-height:150px;padding:12px;font-size:16px;line-height:1.6;
+  }
+  .compose textarea:focus{border-color:var(--blue);}
+  .attach-area{padding:8px 16px 0;display:flex;flex-wrap:wrap;gap:8px;}
+  .compose-foot{display:flex;align-items:center;gap:14px;padding:12px 16px;flex-wrap:wrap;}
+  .btn-send{
+    background:var(--blue);color:#fff;border:0;border-radius:18px;padding:11px 30px;font-weight:700;font-size:16px;min-height:46px;
+  }
+  .btn-send:hover{background:#0846ab;box-shadow:0 1px 3px rgba(60,64,67,.3);}
+  .btn-attach{background:transparent;border:1px solid var(--line);border-radius:18px;padding:10px 16px;color:var(--ink);font-size:15px;min-height:46px;font-weight:700;}
+  .btn-attach:hover{background:var(--hover);}
+  .error{color:var(--alert);font-size:15px;font-weight:700;flex-basis:100%;margin:0;white-space:pre-line;}
+
+  /* ---------- Ventanas (bienvenida y comprobante) ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(32,33,36,.6);display:grid;place-items:center;z-index:60;padding:18px;}
+  .overlay[hidden]{display:none;}
+  .modal{
+    background:var(--surface);border-radius:16px;width:min(560px,100%);
+    max-height:92vh;overflow:auto;box-shadow:0 12px 40px rgba(32,33,36,.4);
+  }
+  .modal-head{background:var(--adi-deep);color:#fff;padding:18px 24px;}
+  .modal-head p{margin:0;font-size:13px;letter-spacing:2px;color:var(--adi-cyan);}
+  .modal-head h2{margin:4px 0 0;font-family:var(--font-display);font-size:19px;letter-spacing:1px;font-weight:600;line-height:1.35;}
+  .modal-body{padding:22px 24px;}
+  .pasos-w{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:8px;}
+  .pasos-w li{display:flex;align-items:center;gap:12px;background:var(--search);border-radius:10px;padding:10px 14px;font-weight:700;}
+  .pasos-w .ico{font-size:24px;line-height:1;}
+  .switch{
+    display:flex;align-items:center;gap:12px;border:2px solid var(--line);border-radius:12px;
+    padding:12px 14px;cursor:pointer;min-height:60px;
+  }
+  .switch input{width:26px;height:26px;accent-color:var(--blue);flex-shrink:0;cursor:pointer;}
+  .switch .lbl{font-weight:700;line-height:1.4;}
+  .switch small{display:block;font-weight:400;color:var(--ink-soft);font-size:14px;}
+  .receipt-grid{display:grid;grid-template-columns:110px 1fr;gap:10px 16px;font-size:16px;margin:0;}
+  .receipt-grid dt{color:var(--ink-soft);font-size:13.5px;letter-spacing:.8px;padding-top:3px;}
+  .receipt-grid dd{margin:0;font-weight:700;overflow-wrap:anywhere;}
+  .modal-actions{display:flex;gap:12px;flex-wrap:wrap;padding:0 24px 20px;}
+  .btn-download{
+    flex:1;min-width:170px;background:var(--blue);color:#fff;border:0;border-radius:18px;
+    padding:13px 16px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:9px;font-size:15.5px;min-height:50px;
+  }
+  .btn-download:hover{background:#0846ab;}
+  .btn-download.alt{background:var(--surface);color:var(--blue);border:1px solid var(--line);}
+  .btn-download.alt:hover{background:#f0f5ff;border-color:#c6d9f7;}
+  .btn-close{
+    display:block;width:calc(100% - 48px);margin:0 24px 20px;background:transparent;border:0;
+    color:var(--ink-soft);padding:10px;text-decoration:underline;min-height:44px;
+  }
+  .note{
+    margin:16px 24px 18px;background:var(--search);padding:12px 14px;
+    font-size:15px;color:#0b3a6b;border-radius:10px;
+  }
+  .note .lineas{margin:0;gap:3px;}
+
+  @media (max-width:980px){
+    .topbar{height:auto;flex-wrap:wrap;gap:10px;}
+    .brand{width:auto;}
+    .app{grid-template-columns:1fr;height:auto;gap:8px;}
+    .sidebar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 0 4px;}
+    .btn-compose{margin:0;flex:0 0 auto;padding:12px 20px;}
+    .folders{display:flex;gap:6px;margin:0;flex:1;}
+    .folders button{border-radius:16px;padding:8px 14px;}
+    .hint{flex-basis:100%;margin:4px 0 0;}
+    .list,.reader{max-height:none;}
+    .reader{padding:22px 20px 32px;}
+    .compose{right:0;left:0;width:100%;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important;transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar" id="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 64 64" role="img" aria-label="Escudo de la Agencia Digital de Inteligencia">
+      <path d="M32 3 58 13v20c0 15-11 25-26 28C17 58 6 48 6 33V13z" fill="#00a096" stroke="#41e3ff" stroke-width="3"/>
+      <path d="M32 15 44 43H38l-2-5H28l-2 5h-6z" fill="#fff"/>
+      <rect x="30" y="24" width="4" height="9" fill="#00a096"/>
+    </svg>
+    <span class="brand-text"><b>ADI</b> <span>Correo</span></span>
+  </div>
+
+  <div class="searchbar" role="search">
+    <span aria-hidden="true">🔍</span>
+    <label class="sr-only" for="q">Buscar un mensaje</label>
+    <input id="q" type="search" placeholder="Buscar un mensaje">
+  </div>
+
+  <div class="agent-tag">
+    <span>Agente en servicio</span>
+    <span class="avatar" aria-hidden="true">A</span>
+  </div>
+</header>
+
+<main class="app" id="app">
+  <nav class="sidebar" aria-label="Carpetas">
+    <button class="btn-compose" id="btnCompose" type="button"><span aria-hidden="true">✏️</span> Escribir un mensaje</button>
+    <ul class="folders">
+      <li><button type="button" data-folder="inbox" aria-current="true"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm0 12h-4a3 3 0 01-6 0H5V5h14v10z"/></svg>Recibidos <span class="count"><span id="cInbox">5</span><span class="sr-only"> mensajes</span></span></button></li>
+      <li><button type="button" data-folder="sent"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor"><path d="M2.5 20.5L22 12 2.5 3.5v6.9L16 12 2.5 13.6v6.9z"/></svg>Enviados <span class="count"><span id="cSent">0</span><span class="sr-only"> mensajes</span></span></button></li>
+    </ul>
+    <div class="hint">
+      <b>Etapa 5: Puentes de comunicación</b>
+      <ul class="lineas">
+        <li>Escribe un mensaje.</li>
+        <li>Envíalo.</li>
+        <li>Descarga el comprobante.</li>
+        <li>El comprobante es la prueba de tu envío.</li>
+      </ul>
+    </div>
+  </nav>
+
+  <section class="list" aria-labelledby="listTitle">
+    <h2 class="list-head" id="listTitle" tabindex="-1">Recibidos</h2>
+    <div id="mailList"></div>
+  </section>
+
+  <section class="reader" aria-label="Mensaje abierto">
+    <div id="readerContent"></div>
+  </section>
+</main>
+
+<!-- Redacción -->
+<section class="compose" id="compose" hidden aria-labelledby="composeTitle">
+  <div class="compose-head">
+    <h2 id="composeTitle" tabindex="-1">Mensaje nuevo</h2>
+    <button type="button" id="btnCloseCompose" aria-label="Cerrar el mensaje nuevo">✕</button>
+  </div>
+  <div class="field">
+    <label for="to">Para</label>
+    <p class="ayuda" id="toAyuda">Escribe la dirección. Ejemplo: central@adi.gov</p>
+    <input id="to" type="email" list="contactos" autocomplete="off" aria-describedby="toAyuda">
+    <datalist id="contactos">
+      <option value="central@adi.gov">Central de Operaciones</option>
+      <option value="nova@adi.gov">Agente Nova</option>
+      <option value="soporte@adi.gov">Soporte técnico ADI</option>
+      <option value="archivo@adi.gov">Archivo y expedientes</option>
+    </datalist>
+  </div>
+  <div class="field">
+    <label for="subject">Asunto</label>
+    <p class="ayuda" id="subjectAyuda">De qué trata tu mensaje. Ejemplo: Informe de la misión 5</p>
+    <input id="subject" type="text" autocomplete="off" aria-describedby="subjectAyuda">
+  </div>
+  <div class="field">
+    <label for="bodyText">Mensaje</label>
+    <ul class="lineas" id="bodyAyuda">
+      <li>Escribe un saludo.</li>
+      <li>Escribe lo que quieres contar.</li>
+      <li>Escribe una despedida.</li>
+    </ul>
+    <textarea id="bodyText" aria-describedby="bodyAyuda"></textarea>
+  </div>
+  <div class="attach-area" id="attachArea" aria-live="polite"></div>
+  <div class="compose-foot">
+    <button class="btn-send" id="btnSend" type="button">Enviar</button>
+    <button class="btn-attach" id="btnAttach" type="button"><span aria-hidden="true">📎</span> Adjuntar archivo</button>
+    <input type="file" id="fileInput" multiple class="sr-only" tabindex="-1" aria-hidden="true">
+    <p class="error" id="composeError" role="alert"></p>
+  </div>
+</section>
+
+<!-- Bienvenida -->
+<div class="overlay" id="welcome">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="wTitle" aria-describedby="wDesc">
+    <div class="modal-head">
+      <p>Etapa 5</p>
+      <h2 id="wTitle" tabindex="-1">Puentes de comunicación</h2>
+    </div>
+    <div class="modal-body">
+      <div id="wDesc">
+        <ul class="lineas">
+          <li>Este es el correo de la ADI.</li>
+          <li>Hoy vas a escribir un mensaje.</li>
+          <li>Hay 3 pasos.</li>
+        </ul>
+        <ol class="pasos-w">
+          <li><span class="ico" aria-hidden="true">📥</span>Paso 1: lees los mensajes que te llegaron.</li>
+          <li><span class="ico" aria-hidden="true">✏️</span>Paso 2: escribes y envías un mensaje.</li>
+          <li><span class="ico" aria-hidden="true">🧾</span>Paso 3: descargas el comprobante.</li>
+        </ol>
+      </div>
+      <label class="switch" for="voz">
+        <input type="checkbox" id="voz">
+        <span class="lbl"><span aria-hidden="true">🔊 </span>Leer todo en voz alta
+          <small>Una voz lee cada mensaje y cada ventana.</small></span>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-download" id="btnStart" type="button">Empezar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Comprobante -->
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="receiptGrid">
+    <div class="modal-head">
+      <p>Mensaje enviado</p>
+      <h2 id="modalTitle">Comprobante de envío</h2>
+    </div>
+    <div class="modal-body">
+      <dl class="receipt-grid" id="receiptGrid"></dl>
+    </div>
+    <div class="note">
+      <ul class="lineas">
+        <li>Descarga el comprobante.</li>
+        <li>Guárdalo en la carpeta de tu misión.</li>
+        <li>Es la prueba de que enviaste el mensaje.</li>
+      </ul>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-download" id="btnPng" type="button"><span aria-hidden="true">🖼️</span> Descargar imagen (PNG)</button>
+      <button class="btn-download alt" id="btnPdf" type="button"><span aria-hidden="true">📄</span> Descargar PDF</button>
+    </div>
+    <button class="btn-close" id="btnCloseModal" type="button">Cerrar</button>
+  </div>
+</div>
+
+<p class="sr-only" role="status" id="live"></p>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= Datos (lectura fácil) =================
+     Una línea = una idea. Una línea en blanco separa las partes
+     del correo: saludo, cuerpo y despedida. */
+  const inbox = [
+    {
+      id:"in0", from:"Equipo de Pensamiento Computacional de Ceibal", addr:"pensamientocomputacional@ceibal.edu.uy",
+      subject:"Te invitamos al programa de Pensamiento Computacional",
+      date:"Hoy, 09:30",
+      body:"Hola.\n\nSomos el equipo de Pensamiento Computacional de Ceibal.\nTe invitamos a participar del programa este año.\n\nEn el programa resuelves problemas con ideas de la computación.\nPor ejemplo:\n– Separas un problema grande en partes chicas.\n– Buscas cosas que se repiten.\n– Armas una solución paso a paso.\n\nHay 1 clase por semana, en tu salón.\nUn docente se conecta por videollamada.\nTu maestra o tu maestro también está en la clase.\n\nNo necesitas saber programar.\nEmpiezas desde cero.\n\nEn el archivo adjunto hay más información.\n¿Tienes dudas? Responde este correo.\n\nSaludos,\nEquipo de Pensamiento Computacional\nCeibal",
+      attachments:[{name:"programa_pensamiento_computacional.pdf",size:"640 KB"}]
+    },
+    {
+      id:"in1", from:"Central de Operaciones", addr:"central@adi.gov",
+      subject:"Etapa 5: Puentes de comunicación",
+      date:"Hoy, 08:14",
+      body:"Agente:\n\nTu nueva tarea es escribir un mensaje a otra oficina de la Agencia.\n\nTu mensaje necesita:\n1. La dirección correcta.\n2. Un asunto corto y claro.\n3. Un saludo, tu mensaje y una despedida.\n4. Archivos adjuntos, si los tienes.\n\nDespués, envía el mensaje.\nDescarga el comprobante.\nGuárdalo en la carpeta de tu misión.\n\nCentral de Operaciones\nADI",
+      attachments:[{name:"protocolo_correo.pdf",size:"184 KB"}]
+    },
+    {
+      id:"in2", from:"Agente Nova", addr:"nova@adi.gov",
+      subject:"Llaves secretas para revisar",
+      date:"Hoy, 07:02",
+      body:"¡Hola!\n\nTe mando las llaves secretas de la Etapa 4.\nRevísalas.\n¿Alguna es débil? Avísame.\n\nRecuerda: una llave fuerte es larga.\nTiene mayúsculas, minúsculas, números y símbolos.\n\nNova",
+      attachments:[{name:"llaves_etapa4.txt",size:"3 KB"}]
+    },
+    {
+      id:"in3", from:"Soporte técnico ADI", addr:"soporte@adi.gov",
+      subject:"Cómo escribir el asunto de un correo",
+      date:"Ayer, 16:40",
+      body:"Hola, agente.\n\nEl asunto dice de qué trata tu mensaje.\nUn buen asunto se lee rápido.\n\nEste asunto sirve:\n“Informe de la misión 4, Agente Ruiz”\n\nEstos asuntos no sirven:\n“hola”\n“urgente!!!”\n“cosas”\n\nPiensa en la persona que recibe tu mensaje.\n\nSoporte técnico ADI",
+      attachments:[]
+    },
+    {
+      id:"in4", from:"PREMIOS RAPIDOS", addr:"regalo@premi0s-ya.net",
+      subject:"¡¡GANASTE UN CELULAR NUEVO!! Reclámalo YA",
+      date:"Ayer, 11:58",
+      body:"¡¡¡FELICIDADES!!!\n\nTe elegimos entre miles de personas.\nGanaste un celular nuevo.\n\nEnvíanos tu nombre completo.\nEnvíanos tu contraseña.\nEnvíanos el número de tu tutor.\n\nHazlo ya o pierdes el premio.\n¡¡¡HAZ CLIC YA!!!",
+      attachments:[]
+    }
+  ];
+
+  const state = { folder:"inbox", selected:null, sent:[], attachments:[] };
+
+  /* ================= Utilidades ================= */
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+  const say = msg => { $("#live").textContent = ""; setTimeout(()=>{ $("#live").textContent = msg; },50); };
+  const MAY = s => String(s).toLocaleUpperCase("es-UY");
+
+  /* Cuerpo del correo: párrafos separados por línea en blanco, una idea por línea */
+  function bodyHtml(t){
+    return String(t).split(/\n\s*\n/).map(par =>
+      '<div class="par">' + par.split("\n").map(l => '<span class="l">' + esc(l) + '</span>').join("") + '</div>'
+    ).join("");
+  }
+  function adjTexto(n){ return n === 1 ? "1 archivo adjunto" : n + " archivos adjuntos"; }
+
+  function nowStamp(){
+    const d = new Date();
+    const p = n => String(n).padStart(2,"0");
+    return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} · ${p(d.getHours())}:${p(d.getMinutes())} h`;
+  }
+  function makeCode(){
+    let out = "";
+    for(let i=0;i<6;i++) out += "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*32)];
+    return "ADI-" + out;
+  }
+  function humanSize(bytes){
+    if(bytes < 1024) return bytes + " B";
+    if(bytes < 1048576) return Math.round(bytes/1024) + " KB";
+    return (bytes/1048576).toFixed(1) + " MB";
+  }
+
+  /* ================= Voz ================= */
+  const hayVoz = "speechSynthesis" in window;
+  let vozAuto = false, vozES = null;
+  function cargarVoz(){
+    const vs = speechSynthesis.getVoices();
+    vozES = vs.find(v => /^es[-_](UY|AR)/i.test(v.lang)) || vs.find(v => /^es/i.test(v.lang)) || null;
+  }
+  if(hayVoz){ cargarVoz(); speechSynthesis.onvoiceschanged = cargarVoz; }
+  else { $("#voz").closest(".switch").hidden = true; }
+
+  function limpiar(t){
+    return String(t)
+      .replace(/[\p{Extended_Pictographic}\uFE0F\u200D✔✕·–—“”"]/gu," ")
+      .replace(/!{2,}/g,"!").replace(/¡{2,}/g,"¡")
+      .replace(/([.?!:,])\s*\n+/g,"$1 ")
+      .replace(/\n+/g,". ")
+      .replace(/\s+/g," ")
+      .trim();
+  }
+  function hablar(t){
+    if(!hayVoz || !vozAuto) return;
+    speechSynthesis.cancel();
+    setTimeout(() => {
+      const u = new SpeechSynthesisUtterance(limpiar(t));
+      u.lang = "es-UY"; u.rate = .85;
+      if(vozES) u.voice = vozES;
+      speechSynthesis.speak(u);
+    }, 80);
+  }
+  function callar(){ if(hayVoz) speechSynthesis.cancel(); }
+
+  const TEXTO_BIENVENIDA = "Etapa 5. Puentes de comunicación.\nEste es el correo de la ADI.\nHoy vas a escribir un mensaje.\nHay 3 pasos.\nPaso 1: lees los mensajes que te llegaron.\nPaso 2: escribes y envías un mensaje.\nPaso 3: descargas el comprobante.\nCuando estés listo, toca Empezar.";
+
+  /* Todo lo que no es una ventana abierta queda bloqueado mientras la ventana está abierta */
+  function fondo(bloquear){
+    ["#topbar","#app","#compose"].forEach(s => { $(s).inert = bloquear; });
+  }
+
+  /* ================= Lista y lectura ================= */
+  function currentList(){
+    const q = $("#q").value.trim().toLowerCase();
+    const base = state.folder === "inbox" ? inbox : state.sent;
+    if(!q) return base;
+    return base.filter(m =>
+      (m.subject + " " + m.body + " " + (m.from||"") + " " + (m.to||"") + " " + (m.addr||"")).toLowerCase().includes(q)
+    );
+  }
+
+  function resumenCarpeta(){
+    const list = currentList();
+    const nombre = state.folder === "inbox" ? "Recibidos" : "Enviados";
+    if(!list.length){
+      return nombre + ".\n" + (state.folder === "sent"
+        ? "Todavía no enviaste mensajes.\nToca Escribir un mensaje."
+        : "No hay mensajes con esa palabra.");
+    }
+    const n = list.length === 1 ? "Hay 1 mensaje." : "Hay " + list.length + " mensajes.";
+    const items = list.map((m,i) => `Mensaje ${i+1}: ${state.folder === "inbox" ? "de " + m.from : "para " + m.to}. Asunto: ${m.subject}.`).join("\n");
+    return nombre + ".\n" + n + "\n" + items + "\nElige un mensaje para leerlo.";
+  }
+
+  function renderList(){
+    const list = currentList();
+    $("#listTitle").textContent = state.folder === "inbox" ? "Recibidos" : "Enviados";
+    $("#cInbox").textContent = inbox.length;
+    $("#cSent").textContent = state.sent.length;
+
+    if(!list.length){
+      $("#mailList").innerHTML = '<p class="empty">' +
+        (state.folder === "sent"
+          ? '<span class="l">Todavía no enviaste mensajes.</span><span class="l">Toca <b>Escribir un mensaje</b>.</span>'
+          : '<span class="l">No hay mensajes con esa palabra.</span>') + "</p>";
+      return;
+    }
+
+    $("#mailList").innerHTML = '<ul class="mail-list">' + list.map(m => {
+      const who = state.folder === "inbox" ? m.from : "Para: " + (m.to || "");
+      const primera = m.body.split("\n").map(s=>s.trim()).filter(Boolean);
+      const prev = (primera[1] || primera[0] || "");
+      const clip = m.attachments.length ? `<span class="clip"><span aria-hidden="true">📎</span> ${adjTexto(m.attachments.length)}</span>` : "";
+      const etiqueta = (state.folder === "inbox" ? "De " + m.from : "Para " + m.to) +
+        ". Asunto: " + m.subject + ". " + m.date + "." +
+        (m.attachments.length ? " " + adjTexto(m.attachments.length) + "." : "");
+      return `<li><button type="button" class="mail-item" data-id="${m.id}" aria-current="${m.id===state.selected}" aria-label="${esc(etiqueta)}">
+        <span class="who"><strong>${esc(who)}</strong><span>${esc(m.date)}</span></span>
+        <span class="subj">${esc(m.subject)}</span>
+        <span class="prev">${esc(prev)}</span>
+        ${clip}
+      </button></li>`;
+    }).join("") + "</ul>";
+
+    $("#mailList").querySelectorAll(".mail-item").forEach(b => {
+      b.addEventListener("click", () => {
+        state.selected = b.dataset.id;
+        renderList(); renderReader(true);
+      });
+    });
+  }
+
+  function renderReader(abrir){
+    const all = inbox.concat(state.sent);
+    const m = state.selected ? all.find(x => x.id === state.selected) : null;
+    if(!m){
+      $("#readerContent").innerHTML = '<p class="empty">Elige un mensaje de la lista para leerlo.</p>';
+      return;
+    }
+    const isSent = !!m.to;
+    const attach = m.attachments.length
+      ? `<div class="attach-row"><p class="attach-tit">${adjTexto(m.attachments.length)}:</p>${m.attachments.map(a =>
+          `<span class="chip"><span aria-hidden="true">📎</span> ${esc(a.name)} <span style="color:var(--ink-soft)">${esc(a.size)}</span></span>`).join("")}</div>`
+      : "";
+    const receiptBtn = isSent
+      ? `<div class="attach-row"><span class="badge-sent"><span aria-hidden="true">✔</span> Enviado. Código: ${esc(m.code)}</span>
+           <button type="button" class="btn-secondary" data-receipt="${m.id}">Descargar el comprobante</button></div>`
+      : "";
+
+    $("#readerContent").innerHTML = `
+      <h2 id="readerTitle" tabindex="-1">${esc(m.subject)}</h2>
+      <div class="meta">
+        <span><b>${isSent ? "Para" : "De"}:</b> ${esc(isSent ? m.to : m.from)}</span>
+        ${isSent ? "" : `<span><b>Dirección:</b> ${esc(m.addr)}</span>`}
+        <span><b>Fecha:</b> ${esc(m.date)}</span>
+      </div>
+      <p class="sr-only">El mensaje dice:</p>
+      <div class="body-text">${bodyHtml(m.body)}</div>
+      ${attach}
+      ${receiptBtn}
+    `;
+    const rb = $("#readerContent").querySelector("[data-receipt]");
+    if(rb) rb.addEventListener("click", () => openReceipt(m, rb));
+
+    if(abrir){
+      $("#readerTitle").focus();
+      hablar(
+        (isSent ? "Mensaje para " + m.to : "Mensaje de " + m.from + ". Dirección: " + m.addr) +
+        ".\nAsunto: " + m.subject + ".\nEl mensaje dice:\n" + m.body +
+        (m.attachments.length ? "\nTiene " + adjTexto(m.attachments.length) + "." : "")
+      );
+    }
+  }
+
+  /* ================= Redacción ================= */
+  function renderAttachments(){
+    $("#attachArea").innerHTML = state.attachments.map((a,i) =>
+      `<span class="chip"><span aria-hidden="true">📎</span> ${esc(a.name)} <span style="color:var(--ink-soft)">${esc(a.size)}</span>
+        <button type="button" class="x" data-i="${i}" aria-label="Quitar el archivo ${esc(a.name)}">✕</button></span>`).join("");
+    $("#attachArea").querySelectorAll(".x").forEach(b => {
+      b.addEventListener("click", () => {
+        state.attachments.splice(Number(b.dataset.i),1);
+        renderAttachments();
+        say("Archivo quitado.");
+        hablar("Archivo quitado.");
+        $("#btnAttach").focus();
+      });
+    });
+  }
+
+  function openCompose(){
+    $("#compose").hidden = false;
+    $("#composeError").textContent = "";
+    $("#to").focus();
+    hablar("Mensaje nuevo.\nCompleta 3 cosas.\nPara: la dirección.\nAsunto: de qué trata tu mensaje.\nMensaje: un saludo, lo que quieres contar y una despedida.\nDespués, toca Enviar.");
+  }
+  function closeCompose(){
+    callar();
+    $("#compose").hidden = true;
+    $("#btnCompose").focus();
+  }
+  function clearCompose(){
+    $("#to").value = ""; $("#subject").value = ""; $("#bodyText").value = "";
+    state.attachments = []; renderAttachments();
+  }
+
+  function mostrarError(txt, campo){
+    $("#composeError").textContent = txt;
+    $(campo).focus();
+    hablar(txt);
+  }
+
+  function send(){
+    const to = $("#to").value.trim();
+    const subject = $("#subject").value.trim();
+    const body = $("#bodyText").value.trim();
+
+    if(!to){ mostrarError("Falta la dirección.\nEjemplo: central@adi.gov", "#to"); return; }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){
+      mostrarError("La dirección no está completa.\nNecesita una @ y un punto.\nEjemplo: central@adi.gov", "#to"); return;
+    }
+    if(!subject){ mostrarError("Falta el asunto.\nEscribe de qué trata tu mensaje.", "#subject"); return; }
+    if(!body){ mostrarError("Falta el mensaje.\nEscribe un saludo, lo que quieres contar y una despedida.", "#bodyText"); return; }
+    $("#composeError").textContent = "";
+
+    const mail = {
+      id:"s"+Date.now(), to, subject, body,
+      attachments: state.attachments.slice(),
+      date: nowStamp(), code: makeCode()
+    };
+    state.sent.unshift(mail);
+    clearCompose();
+    $("#compose").hidden = true;
+    state.folder = "sent"; state.selected = mail.id;
+    document.querySelectorAll(".folders button").forEach(b =>
+      b.setAttribute("aria-current", String(b.dataset.folder === "sent")));
+    renderList(); renderReader(false);
+    say("Mensaje enviado.");
+    openReceipt(mail, null);
+  }
+
+  /* ================= Comprobante: pantalla ================= */
+  let currentMail = null, focoVuelta = null;
+
+  function openReceipt(mail, desde){
+    currentMail = mail;
+    focoVuelta = desde;
+    const adj = mail.attachments.length
+      ? mail.attachments.map(a => a.name).join(", ")
+      : "No tiene archivos adjuntos";
+    $("#receiptGrid").innerHTML = `
+      <dt>Para</dt><dd>${esc(mail.to)}</dd>
+      <dt>Asunto</dt><dd>${esc(mail.subject)}</dd>
+      <dt>Adjuntos</dt><dd${mail.attachments.length ? ' style="text-transform:none"' : ''}>${esc(adj)}</dd>
+      <dt>Fecha</dt><dd>${esc(mail.date)}</dd>
+      <dt>Código</dt><dd>${esc(mail.code)}</dd>`;
+    fondo(true);
+    $("#overlay").hidden = false;
+    $("#btnPng").focus();
+    hablar("Mensaje enviado.\nComprobante de envío.\nPara: " + mail.to + ".\nAsunto: " + mail.subject +
+      ".\nAdjuntos: " + adj + ".\nDescarga el comprobante.\nGuárdalo en la carpeta de tu misión.\nEs la prueba de que enviaste el mensaje.");
+  }
+  function closeReceipt(){
+    callar();
+    $("#overlay").hidden = true;
+    fondo(false);
+    if(focoVuelta && document.body.contains(focoVuelta)) focoVuelta.focus();
+    else if($("#readerTitle")) $("#readerTitle").focus();
+    say("Comprobante cerrado.");
+  }
+
+  /* ================= Comprobante: dibujo en canvas ================= */
+  function wrap(ctx, text, x, y, maxW, lh, maxLines){
+    // Corta palabras más largas que el ancho disponible (direcciones, nombres de archivo)
+    const words = [];
+    String(text).split(/\s+/).forEach(w => {
+      while(ctx.measureText(w).width > maxW && w.length > 1){
+        let cut = w.length;
+        while(cut > 1 && ctx.measureText(w.slice(0,cut)).width > maxW) cut--;
+        words.push(w.slice(0,cut));
+        w = w.slice(cut);
+      }
+      if(w) words.push(w);
+    });
+
+    const lines = [];
+    let line = "";
+    words.forEach(w => {
+      const test = line ? line + " " + w : w;
+      if(ctx.measureText(test).width > maxW && line){ lines.push(line); line = w; }
+      else { line = test; }
+    });
+    if(line) lines.push(line);
+
+    let out = lines;
+    if(maxLines && lines.length > maxLines){
+      out = lines.slice(0, maxLines);
+      let last = out[maxLines-1];
+      while(ctx.measureText(last + "…").width > maxW && last.length > 1) last = last.slice(0,-1);
+      out[maxLines-1] = last + "…";
+    }
+    out.forEach(l => { ctx.fillText(l, x, y); y += lh; });
+    return y;
+  }
+
+  async function drawReceipt(mail){
+    const W = 1000, H = 780, S = 2;
+    const c = document.createElement("canvas");
+    c.width = W*S; c.height = H*S;
+    const x = c.getContext("2d");
+    x.scale(S,S);
+    x.textBaseline = "alphabetic";
+
+    try{
+      await document.fonts.load('700 26px "Atkinson Hyperlegible"');
+      await document.fonts.load('400 18px "Atkinson Hyperlegible"');
+      await document.fonts.load('800 30px "Orbitron"');
+      await document.fonts.ready;
+    }catch(e){ /* si no cargan, se usan las fuentes de respaldo */ }
+
+    const body = '"Atkinson Hyperlegible", Verdana, sans-serif';
+    const disp = '"Orbitron", "Atkinson Hyperlegible", sans-serif';
+
+    // Fondo
+    x.fillStyle = "#ffffff"; x.fillRect(0,0,W,H);
+    x.strokeStyle = "#d7e3e6"; x.lineWidth = 2; x.strokeRect(1,1,W-2,H-2);
+
+    // Encabezado
+    x.fillStyle = "#0b2b33"; x.fillRect(0,0,W,132);
+    x.fillStyle = "#41e3ff"; x.fillRect(0,132,W,5);
+
+    // Escudo
+    x.save();
+    x.translate(44,30); x.scale(1.15,1.15);
+    x.beginPath();
+    x.moveTo(30,0); x.lineTo(58,10); x.lineTo(58,32);
+    x.bezierCurveTo(58,50,44,58,30,62); x.bezierCurveTo(16,58,2,50,2,32);
+    x.lineTo(2,10); x.closePath();
+    x.fillStyle = "#00a096"; x.fill();
+    x.lineWidth = 2.5; x.strokeStyle = "#41e3ff"; x.stroke();
+    x.beginPath();
+    x.moveTo(30,14); x.lineTo(43,44); x.lineTo(36,44); x.lineTo(34,39);
+    x.lineTo(26,39); x.lineTo(24,44); x.lineTo(17,44); x.closePath();
+    x.fillStyle = "#ffffff"; x.fill();
+    x.restore();
+
+    x.fillStyle = "#ffffff";
+    x.font = '800 30px ' + disp;
+    x.fillText("AGENCIA DIGITAL DE INTELIGENCIA", 130, 58);
+    x.fillStyle = "#9fdfe9";
+    x.font = '400 17px ' + body;
+    x.fillText("COMPROBANTE DE ENVÍO DE CORREO", 130, 88);
+    x.fillStyle = "#41e3ff";
+    x.font = '700 15px ' + body;
+    x.fillText("ETAPA 5: PUENTES DE COMUNICACIÓN", 130, 113);
+
+    // Estado
+    x.fillStyle = "#e3f4ec";
+    roundRect(x, 700, 172, 254, 52, 26); x.fill();
+    x.strokeStyle = "#b9e3d1"; x.lineWidth = 2; roundRect(x,700,172,254,52,26); x.stroke();
+    x.fillStyle = "#1b7a5a";
+    x.font = '700 20px ' + body;
+    x.fillText("✔  MENSAJE ENVIADO", 726, 205);
+
+    // Campos
+    let y = 210;
+    const labelX = 46, valueX = 46, maxW = 620;
+
+    function field(label, value, lines){
+      x.fillStyle = "#4d6670";
+      x.font = '700 14px ' + body;
+      x.fillText(MAY(label), labelX, y);
+      y += 27;
+      x.fillStyle = "#10232a";
+      x.font = '700 25px ' + body;
+      y = wrap(x, value, valueX, y, maxW, 32, lines || 2);
+      y += 16;
+      x.strokeStyle = "#e7f0f2"; x.lineWidth = 1.5;
+      x.beginPath(); x.moveTo(labelX, y); x.lineTo(W-46, y); x.stroke();
+      y += 26;
+    }
+
+    field("Para", MAY(mail.to), 1);
+    field("Asunto", MAY(mail.subject), 2);
+    // Los nombres de archivo se dejan tal cual, para que se reconozcan
+    field("Archivos adjuntos",
+      mail.attachments.length ? mail.attachments.map(a => a.name).join(" · ") : "NO TIENE ARCHIVOS ADJUNTOS", 2);
+
+    // Fecha y código
+    x.fillStyle = "#4d6670"; x.font = '700 14px ' + body;
+    x.fillText("FECHA Y HORA DE ENVÍO", labelX, y);
+    x.fillText("CÓDIGO DEL COMPROBANTE", 560, y);
+    y += 30;
+    x.fillStyle = "#10232a"; x.font = '700 23px ' + body;
+    x.fillText(mail.date, labelX, y);
+    x.fillStyle = "#046d68"; x.font = '800 23px ' + disp;
+    x.fillText(mail.code, 560, y);
+
+    // Pie
+    x.fillStyle = "#f1f6f7"; x.fillRect(0, H-92, W, 92);
+    x.fillStyle = "#00a096"; x.fillRect(0, H-92, 6, 92);
+    x.fillStyle = "#0d3a41"; x.font = '400 16px ' + body;
+    x.fillText("ACTIVIDAD DE LA ESCUELA. ESTE MENSAJE NO SE ENVIÓ DE VERDAD.", 30, H-56);
+    x.fillStyle = "#4d6670"; x.font = '400 15px ' + body;
+    x.fillText("AGENTES DIGITALES · ADI: OPERACIÓN RED", 30, H-28);
+
+    return c;
+  }
+
+  function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  /* ================= Descargas ================= */
+  function download(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  async function downloadPng(){
+    const canvas = await drawReceipt(currentMail);
+    canvas.toBlob(blob => {
+      download(blob, "comprobante-" + currentMail.code + ".png");
+      say("Listo. Descargaste el comprobante en imagen.");
+      hablar("Listo. Descargaste el comprobante.");
+    }, "image/png");
+  }
+
+  async function downloadPdf(){
+    const canvas = await drawReceipt(currentMail);
+    const jpeg = canvas.toDataURL("image/jpeg", 0.94).split(",")[1];
+    const bin = atob(jpeg);
+    const bytes = pdfFromJpeg(bin, canvas.width, canvas.height);
+    download(new Blob([bytes], {type:"application/pdf"}), "comprobante-" + currentMail.code + ".pdf");
+    say("Listo. Descargaste el comprobante en PDF.");
+    hablar("Listo. Descargaste el comprobante.");
+  }
+
+  // Genera un PDF mínimo (A4 apaisado) con la imagen JPEG incrustada, sin librerías externas.
+  function pdfFromJpeg(jpegBin, imgW, imgH){
+    const pageW = 841.89, pageH = 595.28, margin = 34;
+    const scale = Math.min((pageW-margin*2)/imgW, (pageH-margin*2)/imgH);
+    const w = imgW*scale, h = imgH*scale;
+    const ox = (pageW-w)/2, oy = (pageH-h)/2;
+    const content = `q\n${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${ox.toFixed(2)} ${oy.toFixed(2)} cm\n/Im0 Do\nQ\n`;
+
+    const objs = [
+      "<< /Type /Catalog /Pages 2 0 R >>",
+      "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>`,
+      `<< /Length ${content.length} >>\nstream\n${content}endstream`,
+      `<< /Type /XObject /Subtype /Image /Width ${imgW} /Height ${imgH} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBin.length} >>\nstream\n${jpegBin}\nendstream`
+    ];
+
+    let pdf = "%PDF-1.4\n";
+    const offsets = [];
+    objs.forEach((o,i) => {
+      offsets.push(pdf.length);
+      pdf += (i+1) + " 0 obj\n" + o + "\nendobj\n";
+    });
+    const xref = pdf.length;
+    pdf += "xref\n0 " + (objs.length+1) + "\n0000000000 65535 f \n";
+    offsets.forEach(o => { pdf += String(o).padStart(10,"0") + " 00000 n \n"; });
+    pdf += "trailer\n<< /Size " + (objs.length+1) + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF";
+
+    const bytes = new Uint8Array(pdf.length);
+    for(let i=0;i<pdf.length;i++) bytes[i] = pdf.charCodeAt(i) & 0xff;
+    return bytes;
+  }
+
+  /* ================= Bienvenida ================= */
+  $("#voz").addEventListener("change", e => {
+    vozAuto = e.target.checked;
+    if(vozAuto) hablar("Listo. Voy a leer todo en voz alta.\n" + TEXTO_BIENVENIDA);
+    else callar();
+  });
+  function empezar(){
+    $("#welcome").hidden = true;
+    fondo(false);
+    $("#listTitle").focus();
+    hablar(resumenCarpeta());
+  }
+  $("#btnStart").addEventListener("click", empezar);
+
+  /* ================= Eventos ================= */
+  $("#btnCompose").addEventListener("click", openCompose);
+  $("#btnCloseCompose").addEventListener("click", closeCompose);
+  $("#btnSend").addEventListener("click", send);
+  $("#btnAttach").addEventListener("click", () => $("#fileInput").click());
+  $("#fileInput").addEventListener("change", e => {
+    const n = e.target.files.length;
+    Array.from(e.target.files).forEach(f => state.attachments.push({name:f.name, size:humanSize(f.size)}));
+    e.target.value = "";
+    renderAttachments();
+    const t = n === 1 ? "Archivo adjuntado." : n + " archivos adjuntados.";
+    say(t); hablar(t);
+  });
+  $("#btnPng").addEventListener("click", downloadPng);
+  $("#btnPdf").addEventListener("click", downloadPdf);
+  $("#btnCloseModal").addEventListener("click", closeReceipt);
+  $("#overlay").addEventListener("click", e => { if(e.target.id === "overlay") closeReceipt(); });
+  document.addEventListener("keydown", e => {
+    if(e.key === "Escape"){
+      if(!$("#overlay").hidden) closeReceipt();
+      else if(!$("#compose").hidden) closeCompose();
+    }
+  });
+  $("#q").addEventListener("input", renderList);
+  document.querySelectorAll(".folders button").forEach(b => {
+    b.addEventListener("click", () => {
+      state.folder = b.dataset.folder;
+      document.querySelectorAll(".folders button").forEach(o =>
+        o.setAttribute("aria-current", String(o === b)));
+      state.selected = null;
+      renderList(); renderReader(false);
+      $("#listTitle").focus();
+      hablar(resumenCarpeta());
+    });
+  });
+
+  renderList();
+  renderReader(false);
+  renderAttachments();
+
+  /* Al abrir, se muestra la bienvenida y el resto queda bloqueado */
+  fondo(true);
+  $("#btnStart").focus();
+})();
+</script>
+</body>
+</html>
